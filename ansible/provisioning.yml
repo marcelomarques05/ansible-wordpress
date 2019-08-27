@@ -1,0 +1,88 @@
+---
+- hosts: mysql
+  tasks:
+    - name: '## MySQL - Yum Packages ##'
+      yum:
+        name: "{{ item }}"
+        state: present
+      become: yes
+      with_items:
+        - mariadb-server
+        - MySQL-python
+        - vim
+      notify: Restart_MySQL
+    
+    - name: "## Wordpress - Database Creation ##"
+      mysql_db:
+        login_host: localhost
+        login_user: root
+        name: wordpress_db
+        state: present
+    
+    - name: "## MySQL - User Creation ##"
+      mysql_user:
+        host: apache
+        name: wordpress_user
+        password: wordpress_password
+        login_host: localhost
+        login_user: root
+        priv: "wordpress_db.*:ALL"
+        state: present
+      notify: Restart_MySQL
+
+  handlers:
+    - name: Restart_MySQL
+      systemd: state=restarted name=mariadb.service
+      become: yes
+
+- hosts: apache
+  tasks:
+    - name: '## Apache - Yum Packages ##'
+      yum:
+        name: "{{ item }}"
+        state: present
+      become: yes
+      with_items:
+        - httpd
+        - php
+        - php-common
+        - php-fpm
+        - php-gd
+        - php-mysql
+        - vim
+             
+    - name: "## Download / Extract Wordpress ##"
+      unarchive:
+        src: https://wordpress.org/wordpress-5.1.1.tar.gz
+        dest: /var/www/html
+        remote_src: yes
+        creates: /var/www/html/wordpress
+      become: yes
+        
+    - name: "## Copy Wordpress Config File ##"
+      copy:
+        src: "/var/www/html/wordpress/wp-config-sample.php"
+        dest: "/var/www/html/wordpress/wp-config.php"
+        force: no
+        remote_src: yes
+      notify: Restart_Apache
+      become: yes
+
+    - name: "## Replace Wordpress Config ##"
+      replace:
+        path: "/var/www/html/wordpress/wp-config.php"
+        regexp: "{{ item.regex }}"
+        replace: "{{ item.value }}"
+        backup: yes
+      with_items:
+        - { regex: 'database_name_here', value: 'wordpress_db'}
+        - { regex: 'localhost', value: 'mysql'}
+        - { regex: 'username_here', value: 'wordpress_user'}
+        - { regex: 'password_here', value: 'wordpress_password'}
+      notify: Restart_Apache
+      become: yes
+
+  handlers:
+    - name: Restart_Apache
+      systemd: state=restarted name=httpd.service
+      become: yes

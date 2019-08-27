@@ -1,0 +1,6 @@
+[apache]
+10.0.11.11 ansible_user="vagrant"
+
+[mysql]
+10.0.11.12 ansible_user="vagrant"
+
