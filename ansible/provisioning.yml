@@ -10,7 +10,10 @@
         - mariadb-server
         - MySQL-python
         - vim
-      notify: Restart_MySQL
+    
+    - name: "## Start MySQL ##"
+      systemd: state=started name=mariadb.service
+      become: yes
     
     - name: "## Wordpress - Database Creation ##"
       mysql_db:
@@ -51,6 +54,10 @@
         - php-mysql
         - vim
              
+    - name: "## Start Apache ##"
+      systemd: state=started name=httpd.service
+      become: yes
+
     - name: "## Download / Extract Wordpress ##"
       unarchive:
         src: https://wordpress.org/wordpress-5.1.1.tar.gz
